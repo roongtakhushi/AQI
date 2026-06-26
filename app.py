@@ -61,7 +61,7 @@ st.markdown("""
     .aqi-very-poor { color: #ff0000; }
     .aqi-severe { color: #8f3f97; }
 </style>
-""", unsafe_value=True)
+""", unsafe_allow_html=True)
 
 # ── Paths (relative for deployment portability) ──────────────────────────────
 MODEL_DIR = "models"
@@ -100,8 +100,8 @@ def load_reference_data():
 ref_df = load_reference_data()
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.markdown('<div class="main-title">Air Quality Index (AQI) Predictor</div>', unsafe_value=True)
-st.markdown('<div class="sub-title">Spatial Mapping and Real-time Deep Learning Predictions over India using CNN-LSTM & Satellite Data</div>', unsafe_value=True)
+st.markdown('<div class="main-title">Air Quality Index (AQI) Predictor</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Spatial Mapping and Real-time Deep Learning Predictions over India using CNN-LSTM & Satellite Data</div>', unsafe_allow_html=True)
 
 if error_msg:
     st.error(f"Error loading machine learning assets from '{MODEL_DIR}': {error_msg}")
@@ -159,7 +159,7 @@ with tab1:
         | <span class="aqi-poor">**201 - 300**</span> | Poor | Breathing discomfort to most people on prolonged exposure |
         | <span class="aqi-very-poor">**301 - 400**</span> | Very Poor | Respiratory illness on prolonged exposure |
         | <span class="aqi-severe">**401 - 500**</span> | Severe | Affects healthy people and seriously impacts those with existing diseases |
-        """, unsafe_value=True)
+        """, unsafe_allow_html=True)
         
         st.markdown("""
         ### Spatial Insights
@@ -318,7 +318,7 @@ with tab2:
                             <div class="metric-value {status_class}">{pred_aqi:.1f}</div>
                             <h4 class="{status_class}">{status_name}</h4>
                         </div>
-                        """, unsafe_value=True)
+                        """, unsafe_allow_html=True)
                     with col_res2:
                         st.markdown(f"""
                         <div class="card" style="height: 100%;">
@@ -330,7 +330,7 @@ with tab2:
                                 Location: {lat:.4f}°N, {lon:.4f}°E | Temp: {temp}°C | Wind: {wind_speed} m/s | Yesterday AQI: {aqi_lag}
                             </p>
                         </div>
-                        """, unsafe_value=True)
+                        """, unsafe_allow_html=True)
                 except Exception as ex:
                     st.error(f"Error during calculation/scaling: {ex}")
 
@@ -387,5 +387,5 @@ with tab3:
 st.markdown("---")
 st.markdown(
     "<p style='text-align: center; color: #a0aec0; font-size: 0.8rem;'>AQI Deep Learning Platform © 2026. Made with Streamlit.</p>", 
-    unsafe_value=True
+    unsafe_allow_html=True
 )
