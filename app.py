@@ -4,6 +4,8 @@ import pandas as pd
 import os
 import joblib
 import tensorflow as tf
+import matplotlib.pyplot as plt
+from sklearn.metrics import r2_score, mean_squared_error
 
 # Set page configuration with rich title and layout
 st.set_page_config(
@@ -108,10 +110,11 @@ if error_msg:
     st.warning("Please make sure the models folder containing 'cnn_lstm_best.h5', 'scaler_X.pkl', and 'scaler_y.pkl' is uploaded correctly to your repository.")
 
 # ── Tabs Configuration ────────────────────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "🗺️ Spatial AQI Maps (India)", 
     "🔮 Real-Time AQI Calculator", 
-    "📊 Model Performance & Insights"
+    "📊 Model Performance & Insights",
+    "🔍 Custom Cross-Verification"
 ])
 
 # ── TAB 1: Spatial AQI Maps (India) ───────────────────────────────────────────
@@ -382,6 +385,162 @@ with tab3:
              ▼
   Linear Activation → Output Surface AQI [0, 500]
         """, language="text")
+
+# ── TAB 4: Custom Cross-Verification ──────────────────────────────────────────
+with tab4:
+    st.header("Upload Validation Data for Crosscheck")
+    st.write(
+        "Upload a CSV file containing validation results for another year or a test run. "
+        "The system will automatically run our 5-point data verification checks and generate accuracy charts."
+    )
+    
+    # Show format sample
+    st.markdown("""
+    **Required CSV Columns:**
+    * `station` (Name of the monitoring station)
+    * `actual_AQI` (Actual observed AQI)
+    * `predicted_AQI` (Predicted AQI by the model)
+    """)
+    
+    uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+    
+    if uploaded_file is not None:
+        try:
+            val_df = pd.read_csv(uploaded_file)
+            
+            # Check for required columns
+            required_cols = ["station", "actual_AQI", "predicted_AQI"]
+            missing_cols = [c for c in required_cols if c not in val_df.columns]
+            
+            if missing_cols:
+                st.error(f"Missing required columns in CSV: {missing_cols}")
+            else:
+                st.success("File uploaded successfully! Running cross-checks...")
+                
+                # Check for NaN and drop/fill
+                val_df = val_df.dropna(subset=required_cols)
+                
+                # R2 and RMSE
+                r2 = r2_score(val_df["actual_AQI"], val_df["predicted_AQI"])
+                rmse = np.sqrt(mean_squared_error(val_df["actual_AQI"], val_df["predicted_AQI"]))
+                
+                # --- Checks layout ---
+                col_c1, col_c2 = st.columns(2)
+                
+                with col_c1:
+                    st.subheader("📋 5-Point Sanity Checks")
+                    
+                    # Check 1: Range Validity
+                    st.write("**[Check 1] Prediction range validity**")
+                    min_act, max_act = val_df['actual_AQI'].min(), val_df['actual_AQI'].max()
+                    min_pred, max_pred = val_df['predicted_AQI'].min(), val_df['predicted_AQI'].max()
+                    st.write(f"Actual AQI Range: {min_act:.1f} to {max_act:.1f}")
+                    st.write(f"Predicted AQI Range: {min_pred:.1f} to {max_pred:.1f}")
+                    out_of_range = ((val_df["predicted_AQI"] < 0) | (val_df["predicted_AQI"] > 500)).sum()
+                    if out_of_range == 0:
+                        st.success("✓ All predictions are within valid range (0-500).")
+                    else:
+                        st.warning(f"⚠ {out_of_range} predictions are out of the valid 0-500 range.")
+                        
+                    # Check 2: R2 Sanity
+                    st.write("**[Check 2] R² Sanity check**")
+                    st.write(f"R² Score: **{r2:.4f}** | RMSE: **{rmse:.2f}**")
+                    if r2 > 0.95:
+                        st.warning("⚠ R² > 0.95: Possible overfitting, check train/test leakage.")
+                    elif r2 > 0.85:
+                        st.success("✓ R² is excellent — model is highly reliable.")
+                    elif r2 > 0.70:
+                        st.info("~ R² is acceptable — model is usable.")
+                    else:
+                        st.error("✗ R² too low — model needs improvement.")
+                        
+                    # Check 4: Error distribution
+                    st.write("**[Check 4] Error distribution**")
+                    errors = val_df["actual_AQI"] - val_df["predicted_AQI"]
+                    within_20 = (np.abs(errors) <= 20).mean() * 100
+                    within_50 = (np.abs(errors) <= 50).mean() * 100
+                    within_100 = (np.abs(errors) <= 100).mean() * 100
+                    st.write(f"* Within ±20 AQI: **{within_20:.1f}%**")
+                    st.write(f"* Within ±50 AQI: **{within_50:.1f}%**")
+                    st.write(f"* Within ±100 AQI: **{within_100:.1f}%**")
+                    if within_50 > 80:
+                        st.success("✓ Good: 80%+ predictions are within ±50 AQI.")
+                    else:
+                        st.warning("⚠ Below 80% within ±50 AQI: model may need tuning.")
+
+                with col_c2:
+                    st.subheader("🏫 Per Station Comparison")
+                    station_data = []
+                    for station in sorted(val_df["station"].unique()):
+                        s = val_df[val_df["station"] == station]
+                        actual_mean = s["actual_AQI"].mean()
+                        pred_mean = s["predicted_AQI"].mean()
+                        diff = pred_mean - actual_mean
+                        status = "✓" if abs(diff) < 30 else "⚠"
+                        station_data.append({
+                            "Station": station,
+                            "Actual Mean": round(actual_mean, 1),
+                            "Predicted Mean": round(pred_mean, 1),
+                            "Difference": round(diff, 1),
+                            "Status": status
+                        })
+                    st.dataframe(pd.DataFrame(station_data), use_container_width=True)
+                    
+                    # Reality check
+                    st.write("**[Check 5] Reality check vs expected India ranges**")
+                    known_ranges = {
+                        "Narela_Delhi": (150, 450), "Amritsar": (80, 300), "Lucknow": (100, 350),
+                        "Mumbai": (50, 180), "Bengaluru": (30, 120), "Kolkata": (80, 300),
+                        "Jaipur": (60, 250), "Gurugram": (100, 400), "Chandigarh": (80, 280),
+                    }
+                    rc_items = []
+                    for station, (lo, hi) in known_ranges.items():
+                        s = val_df[val_df["station"] == station]
+                        if len(s) == 0:
+                            continue
+                        pred_mean = s["predicted_AQI"].mean()
+                        if lo <= pred_mean <= hi:
+                            rc_items.append(f"✓ **{station}**: Predicted {pred_mean:.0f} (Expected {lo}-{hi})")
+                        else:
+                            rc_items.append(f"✗ **{station}**: Predicted {pred_mean:.0f} (Expected {lo}-{hi}) ⚠")
+                    st.markdown("\n".join(f"* {item}" for item in rc_items))
+
+                # --- Plots ---
+                st.markdown("---")
+                st.subheader("📈 Validation Plots")
+                
+                fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+                
+                # Scatter
+                axes[0].scatter(val_df["actual_AQI"], val_df["predicted_AQI"], alpha=0.5, s=15, color="#1fa2ff")
+                axes[0].plot([0, 500], [0, 500], "r--", lw=2, label="Perfect fit")
+                axes[0].plot([0, 500], [50, 550], "g--", lw=1, alpha=0.5, label="+50 error band")
+                axes[0].plot([0, 500], [-50, 450], "g--", lw=1, alpha=0.5)
+                axes[0].set_xlim(0, 500)
+                axes[0].set_ylim(0, 500)
+                axes[0].set_xlabel("Actual AQI")
+                axes[0].set_ylabel("Predicted AQI")
+                axes[0].set_title(f"Scatter — R²={r2:.3f} | RMSE={rmse:.1f}")
+                axes[0].legend()
+                axes[0].grid(True, alpha=0.3)
+                
+                # Error histogram
+                axes[1].hist(errors, bins=30, color="#12d6df", edgecolor="white", alpha=0.8)
+                axes[1].axvline(0, color="red", lw=2, label="Zero error")
+                axes[1].axvline(50, color="orange", lw=1.5, linestyle="--", label="±50 band")
+                axes[1].axvline(-50, color="orange", lw=1.5, linestyle="--")
+                axes[1].set_xlabel("Prediction Error (Actual - Predicted)")
+                axes[1].set_ylabel("Count")
+                axes[1].set_title(f"Error Distribution\n{within_50:.1f}% within ±50 AQI")
+                axes[1].legend()
+                axes[1].grid(True, alpha=0.3)
+                
+                plt.suptitle("Uploaded Data Verification Report", fontsize=14, fontweight="bold")
+                plt.tight_layout()
+                st.pyplot(fig)
+                
+        except Exception as e:
+            st.error(f"Error reading file: {e}")
 
 # Footer
 st.markdown("---")
