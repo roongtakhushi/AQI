@@ -1,0 +1,18 @@
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Python cache/bytecode files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local environment/config
+.env
+
+# Large datasets, model checkpoints, and generated outputs
+data/
+models/
+outputs/
