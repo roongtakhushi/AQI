@@ -11,8 +11,3 @@ __pycache__/
 
 # Local environment/config
 .env
-
-# Large datasets, model checkpoints, and generated outputs
-data/
-models/
-outputs/

@@ -1,0 +1,9 @@
+Metric,Value
+RMSE,35.79
+MAE,23.01
+R2,0.9012
+Correlation,0.9504
+Bias,-3.47
+Category_Accuracy_%,71.1
+Total_Samples,1360.0
+N_Stations,5.0

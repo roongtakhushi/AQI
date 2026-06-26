@@ -1,0 +1,6 @@
+Station,State,N,RMSE,MAE,R2,Bias
+Chandigarh,Punjab,291,36.54,23.28,0.7839,8.65
+Gurugram,Haryana,132,47.89,36.67,0.6641,-5.66
+Kolkata,WestBengal,354,18.15,12.06,0.8239,-3.33
+Mumbai,Maharashtra,225,17.97,11.08,0.4293,-2.32
+Narela_Delhi,Delhi,358,49.06,36.06,0.8662,-13.37
