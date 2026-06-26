@@ -566,7 +566,13 @@ with tab3:
                 except:
                     return ''
             
-            st.dataframe(df_st.style.applymap(style_r2, subset=["R2"]), use_container_width=True)
+            # Version-safe styling call for Pandas
+            styler = df_st.style
+            if hasattr(styler, "map"):
+                st_df_styled = styler.map(style_r2, subset=["R2"])
+            else:
+                st_df_styled = styler.applymap(style_r2, subset=["R2"])
+            st.dataframe(st_df_styled, use_container_width=True)
         else:
             st.error("validation_per_station.csv missing")
             
